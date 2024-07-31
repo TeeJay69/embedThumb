@@ -6,3 +6,4 @@ Extracts frames from minute 5 or 1 and embeds them as the cover for every file.
 ## Features
 - Handles filenames with special characters
 - Uses ffmpeg for fast operations (instead of atomicparsley for instance)
+- Checks for ffmpeg errors
