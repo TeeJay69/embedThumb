@@ -43,19 +43,23 @@ for %%f in (*.mp4) do (
     rem Extract thumbnail at the determined timestamp
     ffmpeg -ss !TIME_STAMP! -i "!FILE!" -frames:v 1 "thumbnails\!FILE:~0,-4!.png"
 
+    rem Check the log file for errors
     rem Embed the thumbnail as the cover and overwrite the original file
-    ffmpeg -i "!FILE!" -i "thumbnails\!FILE:~0,-4!.png" -map 1 -map 0 -c copy -disposition:0 attached_pic "temp_!FILE!"
+    ffmpeg -i "!FILE!" -i "thumbnails\!FILE:~0,-4!.png" -map 1 -map 0 -c copy -disposition:0 attached_pic "temp_!FILE!" > temp.log 2>&1
     
-    if errorlevel 1 (
+    rem Check the log file again for errors
+    findstr /C:"Error" temp.log
+    if %errorlevel%==0 (
         echo Failed to process "!FILE!"
         del "temp_!FILE!"
+        del temp.log
     ) else (
         move /y "temp_!FILE!" "!FILE!"
         echo Successfully processed "!FILE!"
+        del temp.log
     )
     endlocal
 )
-
 endlocal
 echo Done.
 pause
