@@ -18,7 +18,6 @@ for %%f in (*.mp4) do (
         set "DURATION=%%D"
     )
 
-    setlocal EnableDelayedExpansion
     rem Extract hours, minutes, and seconds from the duration string
     set "DURATION=!DURATION:Duration=!"
     for /f "tokens=1-4 delims=:., " %%A in ("!DURATION!") do (
@@ -27,27 +26,40 @@ for %%f in (*.mp4) do (
         set /a "seconds=%%C"
     )
 
-    rem Convert duration to seconds
-    set /a "DURATION_SECONDS=!hours!*3600 + !minutes!*60 + !seconds!"
+    rem Convert duration to total seconds
+    set /a "DURATION_SECONDS=hours*3600 + minutes*60 + seconds"
 
-    rem Check if the duration is less than or equal to 300 seconds (5 minutes)
-    if !DURATION_SECONDS! leq 300 (
+    rem Determine the thumbnail timestamp based on video duration:
+    rem - If less than 1 minute, calculate the midpoint.
+    rem - If between 1 and 5 minutes, use fixed timestamp 00:01:00.
+    rem - If longer than 5 minutes, use fixed timestamp 00:05:00.
+    setlocal EnableDelayedExpansion
+    if !DURATION_SECONDS! lss 60 (
+        rem For videos less than 1 minute, calculate the midpoint.
+        set /a "MID_POINT=DURATION_SECONDS/2"
+        set /a "min = MID_POINT / 60"
+        set /a "sec = MID_POINT %% 60"
+        if !min! LSS 10 (set "min=0!min!") else (set "min=!min!")
+        if !sec! LSS 10 (set "sec=0!sec!") else (set "sec=!sec!")
+        set "TIME_STAMP=00:%min%:%sec%"
+    ) else if !DURATION_SECONDS! leq 300 (
+        rem For videos between 1 and 5 minutes, use fixed timestamp at 1 minute.
         set "TIME_STAMP=00:01:00"
     ) else (
+        rem For videos longer than 5 minutes, use fixed timestamp at 5 minutes.
         set "TIME_STAMP=00:05:00"
     )
 
     echo Processing file: !FILE!
-    echo Timestamp for thumbnail: !TIME_STAMP!
+    echo Duration: !DURATION_SECONDS! seconds, Thumbnail Timestamp: !TIME_STAMP!
 
     rem Extract thumbnail at the determined timestamp
     ffmpeg -ss !TIME_STAMP! -i "!FILE!" -frames:v 1 "thumbnails\!FILE:~0,-4!.png"
 
-    rem Check the log file for errors
     rem Embed the thumbnail as the cover and overwrite the original file
     ffmpeg -i "!FILE!" -i "thumbnails\!FILE:~0,-4!.png" -map 1 -map 0 -c copy -disposition:0 attached_pic "temp_!FILE!"
     
-    rem Check the log file again for errors
+    rem Replace the original file with the updated one
     move /y "temp_!FILE!" "!FILE!"
     echo Successfully processed "!FILE!"
     endlocal
